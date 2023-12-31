@@ -1,6 +1,6 @@
 # TodoLn
 
-![Minimum Supported Rust Version](https://img.shields.io/badge/rustc-1.74.1%2B-orange)
+![Minimum Supported Rust Version](https://img.shields.io/badge/rustc-1.70.0%2B-orange)
 ![GitHub License](https://img.shields.io/github/license/Brooklyn-Dev/TodoLn)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Brooklyn-Dev/TodoLn?color=yellow)
 
