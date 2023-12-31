@@ -1,7 +1,7 @@
-# TodoLn CLI
+# TodoLn
 
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/Brooklyn-Dev/TodoLn)
-![GitHub License](https://img.shields.io/github/license/Brooklyn-Dev/TodoLn)
+![GitHub License](https://img.shields.io/github/license/Brooklyn-Dev/TodoLn?color=blue)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Brooklyn-Dev/TodoLn?color=yellow)
 
 a Blazingly Fast and minimal task organiser written in rust. It provides a simple and efficient command-line interface for managing your tasks. Here's a quick overview of its features and usage.
