@@ -38,22 +38,27 @@ pub fn establish_connection() -> Connection {
 }
 
 pub fn update_task_indices(conn: &Connection, tasks: &[Task]) {
-    match conn.execute("UPDATE tasks SET idx = NULL", ()) {
-        Ok(_) => {}
-        Err(e) => {
-            panic!("Failed to update tasks indices: {}", e);  
-        }
-    }
-
-    for (i, task) in tasks.iter().enumerate() {
+    for task in tasks.iter().filter(|task| task.idx.is_some()) {
+        let new_index = task.idx.unwrap();
         match conn.execute(
             "UPDATE tasks SET idx = ?1 WHERE id = ?2",
-            params![&(i as i32 + 1), &task.id],
+            params![&new_index, &task.id],
         ) {
             Ok(_) => {}
             Err(e) => {
-                panic!("Failed to update task (id: {}) index to {}: {}", &task.id.unwrap(), i + 1, e);  
+                panic!("Failed to update task (id: {}) index to {}: {}", &task.id.unwrap(), new_index, e);
             }
+        }
+    }
+
+    match conn.execute(
+        "UPDATE tasks SET idx = (SELECT COUNT(*) FROM tasks t2 WHERE t2.id < tasks.id) + 1
+         WHERE idx IS NULL",
+        (),
+    ) {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("Failed to update tasks without index: {}", e);
         }
     }
 }
@@ -113,7 +118,7 @@ pub fn add_tasks_to_db(conn: &mut Connection, tasks: &[Task]) {
         add_task_to_db(conn, task);
     }
 
-    match get_tasks_from_db(conn) {
+    match get_tasks_from_db_and_update_indices(conn) {
         Ok(_) => {},
         Err(e) => {
             panic!("Failed to update indices after adding tasks: {}", e);
@@ -142,7 +147,7 @@ pub fn insert_tasks_to_db(conn: &mut Connection, idx: &i32, tasks: &[Task]) {
     }
 }
 
-pub fn get_tasks_from_db(conn: &mut Connection) -> Result<Vec<Task>> {
+pub fn get_tasks_from_db_and_update_indices(conn: &mut Connection) -> Result<Vec<Task>> {
     let mut stmt = conn.prepare("SELECT id, name, done FROM tasks ORDER BY idx ASC")?;
     let rows = stmt.query_map([], |row| {
         Ok(Task {
@@ -202,25 +207,32 @@ pub fn mark_task_in_db_as_done(conn: &mut Connection, task_index: &i32) -> Resul
     Ok(())
 }
 
-pub fn sort_tasks_in_db(conn: &mut Connection) -> Result<Vec<Task>, Error> {
-    let mut stmt = conn.prepare("SELECT id, name, done FROM tasks ORDER BY done ASC, idx ASC")?;
+pub fn sort_tasks_in_db(conn: &mut Connection) -> Result<(), Error> {
+    let mut stmt = conn.prepare("SELECT id, idx, name, done FROM tasks ORDER BY done ASC, idx ASC")?;
     let rows = stmt.query_map([], |row| {
         Ok(Task {
             id: row.get(0)?,
-            idx: None,
-            name: row.get(1)?,
-            done: row.get(2)?,
+            idx: row.get(1)?,
+            name: row.get(2)?,
+            done: row.get(3)?,
         })
     })?;
 
-    let mut tasks: Vec<Task> = rows.map(|row| row.unwrap()).collect();
-    for (i, task) in tasks.iter_mut().enumerate() {
-        task.idx = Some(i as i32 + 1);
+    let tasks: Vec<Task> = rows.map(|row| row.unwrap()).collect();
+
+    conn.execute("UPDATE tasks SET idx = NULL", [])?;
+
+    let (done_tasks, not_done_tasks): (Vec<_>, Vec<_>) = tasks.into_iter().partition(|task| task.done);
+
+    for (i, task) in not_done_tasks.iter().enumerate() {
+        conn.execute("UPDATE tasks SET idx = ?1 WHERE id = ?2", params![i as i32 + 1, task.id])?;
     }
 
-    update_task_indices(conn, &tasks);
+    for (i, task) in done_tasks.iter().enumerate() {
+        conn.execute("UPDATE tasks SET idx = ?1 WHERE id = ?2", params![i as i32 + not_done_tasks.len() as i32 + 1, task.id])?;
+    }
 
-    Ok(tasks)
+    Ok(())
 }
 
 

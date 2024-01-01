@@ -4,7 +4,9 @@
 ![GitHub License](https://img.shields.io/github/license/Brooklyn-Dev/TodoLn)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Brooklyn-Dev/TodoLn?color=yellow)
 
-a Blazingly Fast and minimal task organiser written in rust. It provides a simple and efficient command-line interface for managing your tasks. Here's a quick overview of its features and usage.
+a Blazingly Fast and minimal task organiser written in rust. It provides a simple and efficient command-line interface for managing your tasks.
+
+![Todoln usage gif](todoln.gif)
 
 ## Installation
 
@@ -39,7 +41,7 @@ Commands:
   find     Lists tasks based on the search term [aliases: f, search]
   done     Marks task as done [aliases: dn, complete]
   sort     Sorts tasks (todo -> done) [aliases: s, order]
-  remove   Removes tasks [aliases: rm, delete]
+  remove   Removes tasks [aliases: rm, del, delete, -]
   clear    Removes all tasks marked as done [aliases: cls, clean]
   reset    Deletes all tasks [aliases: clearall, deleteall]
   backup   Backs up the task database to the current directory [aliases: b, export]
@@ -53,6 +55,10 @@ Options:
   -V, --version
           Print version
 ```
+
+## Find a bug?
+
+If you found an issue or would like to suggest an improvement to this project, please submit an issue using the issues tab above. If you would like to submit a PR with a fix, reference the issue you created!
 
 ## Like this project?
 

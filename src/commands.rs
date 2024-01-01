@@ -9,7 +9,7 @@ use crate::database::{
     add_tasks_to_db,
     insert_tasks_to_db,
     edit_task_in_db,
-    get_tasks_from_db,
+    get_tasks_from_db_and_update_indices,
     mark_task_in_db_as_done,
     find_tasks_from_db,
     sort_tasks_in_db,
@@ -18,13 +18,12 @@ use crate::database::{
     backup_db,
     restore_db,
 };
+
 use crate::utils::{
     print_success,
     print_error,
     print_title,
     bold_text,
-    // strikethrough_text,
-    // underline_text,
     todo_text,
     done_text,
 };
@@ -40,7 +39,7 @@ const ABOUT_TEXT: &str = "
 
 
 #[derive(Parser)] 
-#[command(author = "Brooklyn Baylis", version = "1.0.0", long_about = ABOUT_TEXT)]
+#[command(author = "Brooklyn Baylis", version = "1.1.0", long_about = ABOUT_TEXT)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -109,7 +108,7 @@ pub enum Commands {
     #[command(name = "sort", visible_aliases = &["s", "order"])]
     Sort,
     /// Removes tasks
-    #[command(name = "remove", visible_aliases = &["rm", "delete"], arg_required_else_help = true)]
+    #[command(name = "remove", visible_aliases = &["rm", "del", "delete", "-"], arg_required_else_help = true)]
     Remove {
         /// The task(s) to remove
         #[arg(value_name = "task_indices", use_value_delimiter = true,)]
@@ -235,7 +234,7 @@ impl DisplayType {
 pub fn list(display_type: &str) {
     let mut conn = establish_connection();
 
-    match get_tasks_from_db(&mut conn) {
+    match get_tasks_from_db_and_update_indices(&mut conn) {
         Ok(tasks) => {        
             match DisplayType::from_str(display_type) {
                 Some(display_type) => {
@@ -292,7 +291,7 @@ pub fn list(display_type: &str) {
 pub fn raw(display_type: &str) {
     let mut conn = establish_connection();
 
-    match get_tasks_from_db(&mut conn) {
+    match get_tasks_from_db_and_update_indices(&mut conn) {
         Ok(tasks) => {        
             if let Some(display_type) = DisplayType::from_str(display_type) {
                 match display_type {
@@ -339,7 +338,10 @@ pub fn done(task_indices: &[i32]) {
     for id in task_indices.iter() {
         match mark_task_in_db_as_done(&mut conn, id) {
             Ok(_) => {},
-            Err(e) => print_error(&format!("Failed to mark task {} as done: {}", id, e)),
+            Err(e) => {
+                print_error(&format!("Failed to mark task {} as done: {}", id, e));
+                return;
+            }
         }
     }
 
@@ -351,7 +353,10 @@ pub fn sort() {
 
     match sort_tasks_in_db(&mut conn) {
         Ok(_) => {},
-        Err(e) => print_error(&format!("Failed to sort tasks: {}", e)),
+        Err(e) => {
+            print_error(&format!("Failed to sort tasks: {}", e));
+            return;
+        }
     }
 
     print_success("Tasks sorted successfully");
@@ -363,7 +368,10 @@ pub fn remove(task_indices: &[i32]) {
     for index in task_indices.iter() {
         match remove_task_from_db(&mut conn, index) {
             Ok(_) => {},
-            Err(e) => print_error(&format!("Failed to remove task {}: {}", index, e)),
+            Err(e) => {
+                print_error(&format!("Failed to remove task {}: {}", index, e));
+                return;
+            }
         }
     }
 
@@ -373,16 +381,18 @@ pub fn remove(task_indices: &[i32]) {
 pub fn clear() {
     let mut conn = establish_connection();
 
-    match get_tasks_from_db(&mut conn) {
-        Ok(tasks) => {        
-            for task in tasks.iter().filter(|t| t.done) {
+    match get_tasks_from_db_and_update_indices(&mut conn) {
+        Ok(tasks) => {
+            let completed_tasks: Vec<_> = tasks.iter().filter(|t| t.done).collect();
+
+            for task in &completed_tasks.clone() {
                 match remove_task_from_db(&mut conn, &task.idx.unwrap()) {
                     Ok(_) => {},
                     Err(e) => print_error(&format!("Failed to remove task {}: {}", &task.idx.unwrap(), e)),
                 }
             }
 
-            print_success(&format!("Completed task(s) cleared successfully: {}", tasks.iter().map(|t| t.name.clone()).collect::<Vec<_>>().join(", ")));
+            print_success(&format!("Completed task(s) cleared successfully: {}", completed_tasks.iter().map(|t| t.name.to_string()).collect::<Vec<_>>().join(", ")));
         },
         Err(e) => print_error(&format!("Failed to retrieve tasks: {}", e)),
     }
