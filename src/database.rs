@@ -37,30 +37,14 @@ pub fn establish_connection() -> Connection {
     }
 }
 
-pub fn update_task_indices(conn: &Connection, tasks: &[Task]) {
-    for task in tasks.iter().filter(|task| task.idx.is_some()) {
-        let new_index = task.idx.unwrap();
-        match conn.execute(
-            "UPDATE tasks SET idx = ?1 WHERE id = ?2",
-            params![&new_index, &task.id],
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("Failed to update task (id: {}) index to {}: {}", &task.id.unwrap(), new_index, e);
-            }
-        }
+pub fn update_task_indices(conn: &Connection, tasks: &[Task]) -> Result<(), Error>{
+    conn.execute("UPDATE tasks SET idx = NULL", [])?;
+
+    for (i, task) in tasks.iter().enumerate() {
+        conn.execute("UPDATE tasks SET idx = ?1 WHERE id = ?2", params![i as i32 + 1, task.id])?;
     }
 
-    match conn.execute(
-        "UPDATE tasks SET idx = (SELECT COUNT(*) FROM tasks t2 WHERE t2.id < tasks.id) + 1
-         WHERE idx IS NULL",
-        (),
-    ) {
-        Ok(_) => {}
-        Err(e) => {
-            panic!("Failed to update tasks without index: {}", e);
-        }
-    }
+    Ok(())
 }
 
 pub fn shift_task_indices(conn: &mut Connection, index: &i32, size: &i32) -> Result<(), Error>  {
@@ -160,7 +144,10 @@ pub fn get_tasks_from_db_and_update_indices(conn: &mut Connection) -> Result<Vec
 
     let tasks: Vec<Task> = rows.map(|row| row.unwrap()).collect();
 
-    update_task_indices(conn, &tasks);
+    match update_task_indices(conn, &tasks) {
+        Ok(_) => {},
+        Err(e) =>  panic!("Failed to update task indices: {}", e)
+    }
     
     let mut stmt = conn.prepare("SELECT id, idx, name, done FROM tasks ORDER BY idx ASC")?;
     let rows = stmt.query_map([], |row| {
@@ -234,7 +221,6 @@ pub fn sort_tasks_in_db(conn: &mut Connection) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 pub fn remove_task_from_db(conn: &mut Connection, task_index: &i32) -> Result<(), Error> {
     conn.execute("DELETE FROM tasks WHERE idx = ?1", params![task_index])?;

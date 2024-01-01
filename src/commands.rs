@@ -39,7 +39,7 @@ const ABOUT_TEXT: &str = "
 
 
 #[derive(Parser)] 
-#[command(author = "Brooklyn Baylis", version = "1.1.0", long_about = ABOUT_TEXT)]
+#[command(author = "Brooklyn Baylis", version = "1.1.1", long_about = ABOUT_TEXT)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
